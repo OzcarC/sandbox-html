@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pose Test</title>
+  <style>
+    body { margin: 0; background: #111; display: flex; justify-content: center; }
+    .container { position: relative; width: 640px; height: 480px; margin-top: 20px; }
+    video { position: absolute; width: 100%; height: 100%; }
+    canvas { position: absolute; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+  </div>
+
+  <!-- MediaPipe libraries from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // 1. Set up the pose detector
+    const pose = new Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+
+    pose.setOptions({
+      modelComplexity: 1,       // 0=fast, 1=balanced, 2=accurate
+      smoothLandmarks: true,    // reduces jitter between frames
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    // 2. This callback fires every frame with results
+    pose.onResults((results) => {
+      // Clear and draw the video frame onto canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+      if (results.poseLandmarks) {
+        // Draw the skeleton connectors and landmark dots
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, 
+          { color: '#00FF00', lineWidth: 2 });
+        drawLandmarks(ctx, results.poseLandmarks, 
+          { color: '#FF0000', lineWidth: 1, radius: 4 });
+      }
+    });
+
+    // 3. Hook up the camera
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await pose.send({ image: video });
+      },
+      width: 640,
+      height: 480
+    });
+
+    camera.start();
+  </script>
+</body>
+</html>
